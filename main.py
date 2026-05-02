@@ -1,57 +1,102 @@
 import streamlit as st
+import pandas as pd
 
-# 1. Definición de los platos y sus ingredientes
-MENU_DATA = {
-    "Lentejas clásicas": ["Lentejas", "Patata", "Zanahoria", "Cebolla"],
-    "Amanida de Pasta": ["Pasta integral", "Tomates cherry", "Pechuga de pollo", "Yogur natural", "Mostaza", "Limón"],
-    "Arroz con Pollo": ["Arroz integral", "Pechuga de pollo", "Judía verde", "Salsa de soja"],
-    "Ensaladilla Ligera": ["Patata", "Zanahoria", "Atún al natural", "Huevos", "Yogur natural"],
-    "Garbanzos Popeye": ["Garbanzos (bote)", "Espinacas congeladas", "Ajo", "Pimentón", "Huevos"],
-    "Arroz con Merluza": ["Arroz integral", "Merluza", "Limón"],
-    "Pollo con Calabacín": ["Pechuga de pollo", "Calabacín"],
-    "Pad Thai": ["Fideos de arroz", "Pollo", "Zanahoria", "Cebolla", "Brotes de soja"]
+PLATOS = {
+    "Comidas": {
+        "Llenties clàssiques": ["Llenties", "Patata", "Pastanaga", "Ceba"],
+        "Amanida de pasta": ["Pasta integral", "Tomàquets cherry", "Pit de pollastre", "Iogurt natural", "Mostassa", "Llimona", "Cranc", "Pinya"],
+        "Arròs amb pollastre": ["Arròs integral", "Pit de pollastre", "Mongeta verda", "Salsa de soja"],
+        "Ensaladilla": ["Patata", "Pastanaga", "Tonyina al natural", "Ous", "Iogurt natural"],
+        "Cigrons i espinacs": ["Cigrons (pot)", "Espinacs congelats", "All", "Pebre vermell", "Ous"],
+        "Arròs amb lluç": ["Arròs integral", "Lluç", "Llimona"],
+        "Pollastre amb carbassó": ["Pit de pollastre", "Carbassó"],
+        "Pad Thai": ["Fideus d'arròs", "Pollastre", "Pastanaga", "Ceba", "Brots de soja"],
+        "Família Berta": [],
+        "Família Carles": [],
+        "Indefinit": [],
+    }
 }
 
-st.set_page_config(page_title="Planificador de Batch Cooking", page_icon="🍱")
+st.set_page_config(page_title="Health Strategy Planner", layout="wide")
 
-st.title("🍱 Planificador Semanal & Lista de la Compra")
-st.write("Selecciona los platos para tu semana de Batch Cooking:")
+st.title("🗓️ Week Planner")
 
-# 2. Organización de la semana
-dias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]
+dias = ["Dilluns", "Dimarts", "Dimecres", "Dijous", "Divendres", "Dissabte", "Diumenge"]
+opciones_comida = list(PLATOS["Comidas"].keys())
+opciones_cena = list(PLATOS["Comidas"].keys())
+
+try:
+    idx_no_definido = opciones_comida.index("Indefinit")
+    idx_berta = opciones_cena.index("Família Berta")
+    idx_carles = opciones_cena.index("Família Carles")
+except ValueError:
+    idx_no_definido = 0
+    idx_berta = 0
+    idx_carles = 0
+
 elecciones = {}
 
-col1, col2 = st.columns(2)
+cols = st.columns(len(dias))
 
-with col1:
-    for dia in dias[:3]:
-        elecciones[dia] = st.selectbox(f"Comida {dia}", list(MENU_DATA.keys()), key=dia)
-
-with col2:
-    for dia in dias[3:]:
-        elecciones[dia] = st.selectbox(f"Comida {dia}", list(MENU_DATA.keys()), key=dia)
-
-# 3. Lógica para la lista de la compra
-if st.button("Generar Lista de la Compra 🛒"):
-    st.subheader("Tu lista de la compra para el Domingo:")
-    
-    lista_compra = []
-    for plato in elecciones.values():
-        lista_compra.extend(MENU_DATA[plato])
-    
-    # Eliminamos duplicados y ordenamos
-    lista_final = sorted(list(set(lista_compra)))
-    
-    # Mostrar la lista con checkboxes para cuando estés en el súper
-    for item in lista_final:
-        st.checkbox(item, key=f"buy_{item}")
+for i, dia in enumerate(dias):
+    with cols[i]:
+        st.markdown(f"**{dia}**")
         
-    st.success("¡Consejo! Recuerda revisar lo que ya tienes en la despensa (especias, aceite, sal) antes de salir.")
+        comida = st.selectbox(
+            "Dinar", 
+            opciones_comida, 
+            index=idx_no_definido, 
+            key=f"c_{dia}"
+        )
 
-# 4. Resumen del Batch Cooking (Opcional)
-with st.expander("Ver resumen de preparaciones"):
-    st.info("""
-    - **Hervir:** Arroz, Pasta, Huevos, Judía verde, Patata, Zanahoria.
-    - **Horno:** Pollo y Calabacín.
-    - **Olla:** Lentejas.
-    """)
+        if dia == "Dimarts":
+            default_cena = idx_berta
+        elif dia == "Dijous":
+            default_cena = idx_carles
+        else:
+            default_cena = idx_no_definido
+            
+        cena = st.selectbox(
+            "Sopar", 
+            opciones_cena, 
+            index=default_cena, 
+            key=f"n_{dia}"
+        )
+        
+        elecciones[dia] = {"Dinar": comida, "Sopar": cena}
+
+# 3. Generación de Lista de la Compra y Exportación
+if st.button("🚀 Generar llista"):
+    st.divider()
+    col_resumen, col_compra = st.columns([1, 1])
+    
+    with col_resumen:
+        st.subheader("📋 Resum")
+        df_semana = pd.DataFrame(elecciones).T
+        st.table(df_semana)
+
+    with col_compra:
+        st.subheader("🛒 Llista de la Compra")
+        ingredientes_totales = []
+        for v in elecciones.values():
+            ingredientes_totales.extend(PLATOS["Comidas"][v["Dinar"]])
+            ingredientes_totales.extend(PLATOS["Comidas"][v["Sopar"]])
+        
+        lista_final = sorted(list(set(ingredientes_totales)))
+        
+        texto_exportar = "🍎 Llista de la Compra\n" + "="*25 + "\n"
+        
+        for ing in lista_final:
+            st.write(f"- [ ] {ing}")
+            texto_exportar += f"- [ ] {ing}\n"
+        
+        st.write("")
+        
+        st.download_button(
+            label="📩 Descargar LLista",
+            data=texto_exportar,
+            file_name="lista_compra_semanal.txt",
+            mime="text/plain"
+        )
+
+    st.success("¡Plan Fet!")
